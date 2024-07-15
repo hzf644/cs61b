@@ -25,6 +25,7 @@ public class MaxArrayDeque<T> extends ArrayDeque<T>{
     }
 
     public T max(Comparator<T> c){
+        if(size()==0)return null;
         Iterator<T> a = this.iterator();
         T ret = this.get(0);
         while(a.hasNext()){

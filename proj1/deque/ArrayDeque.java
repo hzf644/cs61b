@@ -134,6 +134,7 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T>{
         }
 
         public boolean hasNext(){
+            if(size()==0)return false;
             if(head<=tail){
                 return head+index <= tail;
             }
