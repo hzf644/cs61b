@@ -11,6 +11,4 @@ public interface Deque<T>{
     T removeFirst();
     T removeLast();
     T get(int index);
-    Iterator<T> iterator();
-    boolean equals(Object o);
 }
