@@ -2,11 +2,11 @@ package deque;
 
 import java.util.Iterator;
 
-public class ArrayDeque<T> implements Deque<T>{
-    T[] items;
-    int size;
-    int head;
-    int tail;
+public class ArrayDeque<T> implements Deque<T>, Iterable<T>{
+    private T[] items;
+    private int size;
+    private int head;
+    private int tail;
 
     public ArrayDeque(){
         items = (T[]) new Object[8];
@@ -149,8 +149,8 @@ public class ArrayDeque<T> implements Deque<T>{
     }
 
     public boolean equals(Object o){
-        if(o instanceof ArrayDeque){
-            ArrayDeque<T> sample = (ArrayDeque<T>) o;
+        if(o instanceof Deque){
+            Deque<T> sample = (Deque<T>) o;
             if(sample.size() == this.size()){
                 Iterator<T> a = sample.iterator();
                 Iterator<T> b = this.iterator();
