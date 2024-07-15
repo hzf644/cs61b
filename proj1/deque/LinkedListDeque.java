@@ -51,10 +51,6 @@ public class LinkedListDeque <T> implements Deque<T> , Iterable<T>{
         size++;
     }
 
-    public boolean isEmpty(){
-        return size==0;
-    }
-
     public int size(){return size;}
 
     public T removeFirst(){

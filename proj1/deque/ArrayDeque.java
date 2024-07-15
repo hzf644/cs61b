@@ -17,7 +17,6 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T>{
 
     public int size(){return size;}
 
-    public boolean isEmpty(){return size == 0;}
 
     private void resize(int capacity){
         if(head <= tail){
