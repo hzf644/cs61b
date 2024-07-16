@@ -137,6 +137,19 @@ public class LinkedListDeque <T> implements Deque<T> , Iterable<T>{
                 return true;
             }
         }
+        if(o instanceof MaxArrayDeque){
+            MaxArrayDeque<T> sample = (MaxArrayDeque<T>) o;
+            if(sample.size() == this.size()){
+                Iterator<T> a = sample.iterator();
+                Iterator<T> b = this.iterator();
+                while(a.hasNext()){
+                    if(!a.next().equals(b.next())){
+                        return false;
+                    }
+                }
+                return true;
+            }
+        }
         return false;
     }
 
