@@ -23,74 +23,95 @@ public class Main {
         }
         else {
             String firstArg = args[0];
-            boolean exec = true;
             if(!firstArg.equals("init")){
                 if(!gitlet_dir.exists()){
                     System.out.println("Not in a initialized Gitlet directory.");
-                    exec = false;
+                    System.exit(0);
                 }
             }
-            if(exec) {
-                switch (firstArg) {
-                    case "init":
-                        // TODO: handle the `init` command
-                        init();
-                        break;
-                    case "add":
-                        // TODO: handle the `add [filename]` command
-                        if (args.length == 2) add(args[1]);
-                        else System.out.println("Incorrect operands.");
-                        break;
-                    // TODO: FILL THE REST IN
-                    case "commit":
-                        if (args.length == 2) commit(args[1]);
-                        else System.out.println("Incorrect operands.");
-                        break;
-                    case "rm":
-                        if(args.length == 2) remove(args[1]);
-                        else System.out.println("Incorrect operands");
-                        break;
-                    case "log":
-                        log();
-                        break;
-                    case "global-log":
-                        global_log();
-                        break;
-                    case "find":
-                        if(args.length == 2) find(args[1]);
-                        else System.out.println("Incorrect operands");
-                        break;
-                    case "status":
-                        status();
-                        break;
-                    case "checkout":
-                        if(args.length==3){
-                            if(args[1].equals("--"))checkout_file(args[2]);
-                            else checkout_commit(args[1], args[2]);
-                        }
-                        else if(args.length==2)checkout_branch(args[1]);
-                        else System.out.println("Incorrect operands");
-                        break;
-                    case "branch":
-                        if(args.length==2)createBranch(args[1]);
-                        else System.out.println("Incorrect operands");
-                        break;
-                    case "rm-branch":
-                        if(args.length==2)removeBranch(args[1]);
-                        else System.out.println("Incorrect operands");
-                        break;
-                    case "reset":
-                        if(args.length==2)reset(args[1]);
-                        else System.out.println("Incorrect operands");
-                        break;
-                    case "merge":
+            switch (firstArg) {
+                case "init":
+                    // TODO: handle the `init` command
+                    init();
+                    break;
+                case "add":
+                    // TODO: handle the `add [filename]` command
+                    if(validateOperand(args, 2))add(args[1]);
+                    break;
+                // TODO: FILL THE REST IN
+                case "commit":
+                    if(validateOperand(args, 2))commit(args[1]);
+                    break;
+                case "rm":
+                    if(validateOperand(args, 2))remove(args[1]);
+                    break;
+                case "log":
+                    if(validateOperand(args, 1))log();
+                    break;
+                case "global-log":
+                    if(validateOperand(args, 1))global_log();
+                    break;
+                case "find":
+                    if(validateOperand(args, 2))find(args[1]);
+                    break;
+                case "status":
+                    if(validateOperand(args, 1))status();
+                    break;
+                case "checkout":
+                    switch (args.length) {
+                        case 3:
+                            if (!args[1].equals("--")) {
+                                System.out.println("Incorrect operands.");
+                                System.exit(0);
+                            }
+                            /* * checkout -- [file name] */
+                            checkout_file(args[2]);
+                            break;
+                        case 4:
+                            if (!args[2].equals("--")) {
+                                System.out.println("Incorrect operands.");
+                                System.exit(0);
+                            }
+                            /* * checkout [commit id] -- [file name] */
+                            checkout_commit(args[1], args[3]);
+                            break;
+                        case 2:
+                            /* * checkout [branch name] */
+                            checkout_branch(args[1]);
+                            break;
+                        default:
+                            System.out.println("Incorrect operands.");
+                            System.exit(0);
+                    }
+                    break;
+                case "branch":
+                    if(validateOperand(args, 2))createBranch(args[1]);
+                    break;
+                case "rm-branch":
+                    if(validateOperand(args, 2))removeBranch(args[1]);
+                    break;
+                case "reset":
+                    if(validateOperand(args, 2))reset(args[1]);
+                    break;
+                case "merge":
+                    if(validateOperand(args, 2))merge(args[1]);
+                    break;
+                default:
+                    System.out.println("No command with that name exists.");
+                    break;
+            }
 
-                        break;
-                    default:
-                        System.out.println("No command with that name exists.");
-                        break;
-                }
-            }
+        }
+    }
+
+    private static boolean validateOperand(String[] args, int num){
+        if(args.length == num){
+            return true;
+        }
+        else{
+            System.out.println("Incorrect operands.");
+            System.exit(0);
+            return false;
         }
     }
 }

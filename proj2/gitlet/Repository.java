@@ -1,11 +1,16 @@
 package gitlet;
 
+
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.Map.*;
+import org.junit.*;
 
+import static gitlet.Stage.*;
 import static gitlet.Utils.*;
+import static gitlet.MyUtils.*;
 
 // TODO: any imports you need here
 
@@ -15,7 +20,7 @@ import static gitlet.Utils.*;
  *
  *  @author TODO
  */
-public class Repository {
+class Repository {
     /**
      * TODO: add instance variables here.
      *
@@ -24,532 +29,663 @@ public class Repository {
      * variable is used. We've provided two examples for you.
      */
 
+    /**
+    gitlet
+
+     --repository
+         blobs
+
+     --object
+         commits
+
+     --branches
+         heads
+
+     --stage
+         addStage
+         addCache
+         removeStage
+         removeCache
+
+     cur_branch
+
+     head
+     */
+
     /** The current working directory. */
-    public static final File CWD = new File(System.getProperty("user.dir"));
+    static final File CWD = new File(System.getProperty("user.dir"));
     /** The .gitlet directory. */
-    public static final File gitlet_dir = join(CWD, ".gitlet");//directory
+    static final File gitlet_dir = join(CWD, ".gitlet");//directory
 
-    public static final File staging_area = join(gitlet_dir, "staging_area");//directory
+    static final File blobs = join(gitlet_dir, "blobs");//directory
 
-    public static final File repository = join(gitlet_dir, "repository");//directory
+    static final File object = join(gitlet_dir, "object");//directory
 
-    public static final File staged_for_removal = join(staging_area, "staged_for_removal");//directory
+    static final File branches = join(gitlet_dir, "branches");//directory
 
-    public static final File branches = join(gitlet_dir, "branches");//directory
+    static final File stage = join(gitlet_dir, "stage");//directory
 
-    public static final File head = join(gitlet_dir, "head");//file
+    static final File Cache = join(stage, "add");//directory
 
-    public static final File current_branch = join(gitlet_dir, "current_branch");//file
+    static final File addStage = join(stage, "addStage");//file
 
-    public static final File all_commmits = join(gitlet_dir, "all_commits");//file
+    static final File removeStage = join(stage, "removeStage");//file
+
+    static final File cur_branch = join(gitlet_dir, "cur_branch");//file
+
+    static final File head = join(gitlet_dir, "head");
 
     /* TODO: fill in the rest of this class. */
+
+    private static void initCommit() throws IOException {
+
+        Commit initial = new Commit("initial commit", "");
+        initial.setID();
+        initial.save();
+        writeObject(head, initial);
+        writeContents(cur_branch, "master");
+
+        File master = join(branches, "master");
+        createFile(master);
+        writeObject(master, initial);
+
+    }
+
+    private static void initStage(){
+        Stage add = new Stage();
+        Stage remove = new Stage();
+        writeObject(addStage, add);
+        writeObject(removeStage, remove);
+    }
+
+    public static void init() throws IOException {
+
+        if(gitlet_dir.exists()){
+            System.out.println("A Gitlet version-control system already exists in the current directory.");
+            System.exit(0);
+        }
+
+        mkdir(gitlet_dir);
+        mkdir(blobs);
+        mkdir(object);
+        mkdir(branches);
+        createFile(cur_branch);
+        createFile(head);
+        mkdir(stage);
+        createFile(addStage);
+        createFile(removeStage);
+        mkdir(Cache);
+
+        initCommit();
+
+        initStage();
+
+    }
+
     private static Commit getHead(){
-        Commit ret = new Commit();
-        ret = readObject(head, ret.getClass());
-        return ret;
+        return readObject(head, Commit.class);
+    }
+
+    private static boolean checkIfHaveNew(File f){
+        String blob = sha1(readContents(f));
+        Commit head = getHead();
+        return !blob.equals(head.file_blob_map.get(f.getName()));
+    }
+
+
+    public static void add(String fileName) throws IOException{
+        Stage add = getAdd();
+        Stage remove = getRemove();
+        File f = join(CWD, fileName);
+        if(! f.exists()){
+            System.out.println("File does not exist.");
+            System.exit(0);
+        }
+        if(checkIfHaveNew(f)){
+            add.add_for_stage(f);
+        }
+        else{
+            add.remove_from_add(f);
+        }
+        remove.remove_from_remove(f);
+        add.saveAdd();
+        remove.saveRemove();
     }
 
     private static void setHead(Commit c){
         writeObject(head, c);
     }
 
+    private static void setCurrentBranch(String m){
+        writeContents(cur_branch, m);
+    }
+
     private static String getCurrentBranch(){
-        return readContentsAsString(current_branch);
+        return readContentsAsString(cur_branch);
     }
 
-    private static void extendBranch(String branchName, Commit c){
-        File branch = join(branches, branchName);
-        extendBranch(branch, c);
+    private static void extendBranch(Commit c){
+        String cur = getCurrentBranch();
+        File cur_b = join(branches, cur);
+        writeObject(cur_b, c);
     }
 
-    private static void extendBranch(File branch, Commit c){
-        if(!branch.exists()){
-            throw new GitletException("Error! Cannot find branch "+branch.getName());
+    private static void setCommit(Commit newCommit) throws IOException {
+
+        HashMap<String, String> current = getHead().file_blob_map;
+        HashMap<String, String> newMap = new HashMap<>(current);
+        Stage add = getAdd();
+        Stage remove = getRemove();
+        Set<Entry<String, String>> addition = add.fileName_blob_map.entrySet();
+        for(Entry<String, String> entry : addition){
+            newMap.put(entry.getKey(), entry.getValue());
         }
-        writeObject(branch, c);
+        Set<Entry<String, String>> removal = remove.fileName_blob_map.entrySet();
+        for(Entry<String, String> entry : removal){
+            newMap.remove(entry.getKey(), entry.getValue());
+        }
+
+        keepInTrack();
+        clearStage();
+
+        newCommit.file_blob_map = newMap;
+        newCommit.setID();
     }
 
-    private static void addCommit(Commit c){
-        HashMap<String, Commit> all = new HashMap<>();
-        all = readObject(all_commmits, all.getClass());
-        all.put(sha1(serialize(c)), c);
-        writeObject(all_commmits, all);
-    }
-
-    private static HashMap<String, Commit> getAllCommit(){
-        HashMap<String, Commit> ret = new HashMap<>();
-        ret = readObject(all_commmits, ret.getClass());
-        return ret;
-    }
-
-    private static Commit getBranchHead(String branchName){
-        File branch = join(branches, branchName);
-        if(!branch.exists()){
-            throw new GitletException("Error! Cannot find branch "+branchName);
-        }
-        Commit ret = new Commit();
-        ret = readObject(branch, ret.getClass());
-        return ret;
-    }
-
-    private static void staging_area_clear(){
-        File[] f = staging_area.listFiles();
-        if(f != null){
-            for (File file : f) {
-                if(file.isFile()) {
-                    file.delete();
-                }
-            }
-        }
-        f = staged_for_removal.listFiles();
-        if(f != null){
-            for(File file : f){
-                if(file.isFile()){
-                    file.delete();
-                }
-            }
-        }
-    }
-
-    public static void init() throws IOException {
-
-        if(!gitlet_dir.exists()){
-
-            if(!gitlet_dir.mkdir()){
-                throw new GitletException("Error! Cannot init a repository");
-            }
-
-            if(!staging_area.exists()){
-                if(!staging_area.mkdir()){
-                    throw new GitletException("Error! Cannot create the staging area");
-                }
-            }
-
-            if(!staged_for_removal.exists()){
-                if(!staged_for_removal.mkdir()){
-                    throw new GitletException("Error! Cannot create the staging area");
-                }
-            }
-
-            if(!repository.exists()){
-                if(!repository.mkdir()){
-                    throw new GitletException("Error! Cannot create repository");
-                }
-            }
-
-            if(!branches.exists()){
-                if(!branches.mkdir()){
-                    throw new GitletException("Error! Cannot init a repository");
-                }
-            }
-
-            if(!head.exists()){
-                if(!head.createNewFile()){
-                    throw new GitletException("Error! Cannot init a repository");
-                }
-            }
-
-            if(!current_branch.exists()){
-                if(!current_branch.createNewFile()){
-                    throw new GitletException("Error! Cannot create a master branch");
-                }
-            }
-
-            if(!all_commmits.exists()){
-                if(!all_commmits.createNewFile()){
-                    throw new GitletException("Error Cannot init a repository");
-                }
-            }
-
-
-
-            Commit initial = new Commit("initial commit", null, "master");
-
-            HashMap<String, Commit> all = new HashMap<>();
-            all.put(sha1(serialize(initial)), initial);
-            writeObject(all_commmits, all);
-
-            setHead(initial);
-
-            createBranch("master");
-            switchBranch("master");
-        }
-        else{
-            System.out.println("A Gitlet version-control system already exists in the current directory.");
-        }
-    }
-
-    public static void add(String fileName) throws IOException{
-        Commit head = getHead();
-        File ready = join(CWD, fileName);
-        if(!ready.exists()){
-            throw new GitletException("Error! Cannot find file "+fileName);
-        }
-        byte[] content = readContents(ready);
-        String sha = sha1(content);
-        String cur_version = head.name_content_map.get(fileName);
-
-        //if version is same
-        if(sha.equals(cur_version)){
-            File staged = join(staging_area, fileName);
-            staged.delete();
-        }
-        //if version is different
-        else{
-            File staged = join(staging_area, fileName);
-            if(!staged.exists()){
-                if(!staged.createNewFile()){
-                    throw new GitletException("Error! Cannot stage file "+fileName);
-                }
-            }
-            writeContents(staged, content);
-        }
+    private static boolean ifAnythingStaged(){
+        Stage add = getAdd();
+        Stage remove = getRemove();
+        return add.ifAnythingStaged() || remove.ifAnythingStaged();
     }
 
     public static void commit(String message) throws IOException{
-
+        if(!ifAnythingStaged()){
+            System.out.println("No changes added to the commit.");
+            System.exit(0);
+        }
+        if(message.isBlank()){
+            System.out.println("Please enter a commit message.");
+            System.exit(0);
+        }
         Commit head = getHead();
-        String branch = getCurrentBranch();
-        Commit new_commit = new Commit(message, head, branch);
-        addCommit(new_commit);
-
-        File[] f = staging_area.listFiles();
-        if(f != null){
-            for (File file : f) {
-                if(file.isFile()) {
-                    byte[] content = readContents(file);
-                    String sha1 = sha1(content);
-                    new_commit.name_content_map.put(file.getName(), sha1);
-
-                    File blob = join(repository, sha1);
-                    if (!blob.exists()) {
-                        if (!blob.createNewFile()) {
-                            throw new GitletException("Oops! Error when committing!");
-                        }
-                    }
-                    writeContents(blob, content);
-
-                    file.delete();
-                }
-            }
-        }
-
-        f = staged_for_removal.listFiles();
-        if(f != null){
-            for(File file : f){
-                if(file.isFile()){
-                    new_commit.name_content_map.remove(file.getName());
-                    file.delete();
-                }
-            }
-        }
-
-        setHead(new_commit);
-        extendBranch(branch, new_commit);
+        Commit newCommit = new Commit(message, head.getId());
+        setCommit(newCommit);
+        newCommit.save();
+        setHead(newCommit);
+        extendBranch(newCommit);
     }
 
-    private static void switchBranch(String branchName){
-        writeContents(current_branch, branchName);
-        File branch_pointer = join(branches, branchName);
-        writeContents(head, readContents(branch_pointer));
+    private static boolean checkIfCurrentlyTracked(File f){
+        String sha1 = sha1(readContents(f));
+        Commit head = getHead();
+        return sha1.equals(head.file_blob_map.get(f.getName()));
     }
 
     public static void remove(String fileName) throws IOException {
-        File isStaged = join(staging_area, fileName);
-        if(isStaged.exists()){
-            isStaged.delete();
-        }
-        Commit head = getHead();
-        if(head.name_content_map.containsKey(fileName)){
-            File forRemoval = join(staged_for_removal, fileName);
-            File realRemoval = join(CWD, fileName);
-            if(!forRemoval.exists()){
-                if(!forRemoval.createNewFile()){
-                    throw new GitletException("Error! Cannot remove file "+fileName);
-                }
-            }
-            if(realRemoval.exists()){
-                realRemoval.delete();
+        Stage add = getAdd();
+        Stage remove = getRemove();
+        File f = join(CWD, fileName);
+        if(add.isStaged(f) || checkIfCurrentlyTracked(f)) {
+            add.remove_from_add(f);
+            if (checkIfCurrentlyTracked(f)) {
+                remove.add_for_remove(f);
+                deleteFile(f);
             }
         }
+        else{
+            System.out.println("No reason to remove the file.");
+        }
+        add.saveAdd();
+        remove.saveRemove();
+    }
+
+    public static void printCommit(Commit c){
+        System.out.println("===");
+        System.out.println("commit " + c.getId());
+        System.out.println(c.getDate());
+        System.out.println(c.getMessage());
+        System.out.print("\n");
+    }
+
+    public static void printMerge(Commit c){
+        System.out.println("===");
+        System.out.print("commit " + c.getId() + "\n");
+        System.out.println("merge " + c.getParentId().substring(0, 7) + " " + c.getSecondParentId().substring(0, 7));
+        System.out.println(c.getDate());
+        System.out.println(c.getMessage());
+        System.out.print("\n");
     }
 
     public static void log(){
         Commit head = getHead();
-        SimpleDateFormat formatter = new SimpleDateFormat("E MMM hh:mm:ss yyyy +0800");
-        while(head != null){
-            if(head.second_parent == null) {
-                String sha = sha1(serialize(head));
-                System.out.println("===\n");
-                System.out.println("commit " + sha);
-                System.out.println("Date: " + formatter.format(head.date));
-                System.out.println(head.message);
-                System.out.print("\n");
-                head = head.parent;
+        while(true){
+            if(head.isMerge()){
+                printMerge(head);
             }
             else{
-                String sha = sha1(serialize(head));
-                System.out.println("===\n");
-                System.out.println("commit " + sha);
-                String s1 = sha1(serialize(head.parent)).substring(0, 6);
-                String s2 = sha1(serialize(head.second_parent)).substring(0, 6);
-                System.out.println("Merge: "+s1+" "+s2);
-                System.out.println("Date: " + formatter.format(head.date.toInstant()));
-                System.out.println(head.message);
-                head = head.parent;
+                printCommit(head);
+                if(head.isInitial())break;
             }
+            head = head.getParent();
         }
     }
 
     public static void global_log(){
-        HashMap<String, Commit> all = getAllCommit();
-        Set<String> keys = all.keySet();
-        Commit head = new Commit();
-        SimpleDateFormat formatter = new SimpleDateFormat("E MMM hh:mm:ss yyyy +0800");
-        for(String key : keys){
-            head = all.get(key);
-            if(head.second_parent == null) {
-                System.out.println("===\n");
-                System.out.println("commit " + key);
-                System.out.println("Date: " + formatter.format(head.date));
-                System.out.println(head.message);
-                System.out.print("\n");
-            }
-            else{
-                System.out.println("===\n");
-                System.out.println("commit " + key);
-                String s1 = sha1(serialize(head.parent)).substring(0, 6);
-                String s2 = sha1(serialize(head.second_parent)).substring(0, 6);
-                System.out.println("Merge: "+s1+" "+s2);
-                System.out.println("Date: " + formatter.format(head.date.toInstant()));
-                System.out.println(head.message);
+        Commit ret = null;
+        File[] files = object.listFiles();
+        if(files != null){
+            for(File file : files){
+                ret = readObject(file, Commit.class);
+                if(ret.isMerge()){
+                    printMerge(ret);
+                }
+                else{
+                    printCommit(ret);
+                }
             }
         }
     }
 
     public static void find(String message){
-        HashMap<String, Commit> all = getAllCommit();
-        Set<String> keys = all.keySet();
-        Commit head = new Commit();
-        for(String key : keys){
-            head = all.get(key);
-            if(head.message.equals(message))System.out.println(key);
-        }
-    }
-
-    public static void status(){
-
-        System.out.println("=== Branches ===");
-        List<String> b = plainFilenamesIn(branches);
-        String cur = getCurrentBranch();
-        assert b != null;
-        for(String branch : b){
-            if(cur.equals(branch))System.out.print('*');
-            System.out.println(branch);
-        }
-        System.out.print('\n');
-
-        System.out.println("=== Staged Files ===");
-        List<String> f = plainFilenamesIn(staging_area);
-        if(f != null){
-            f.sort(String::compareTo);
-            for(String name : f){
-                System.out.println(name);
-            }
-        }
-        System.out.print('\n');
-
-        System.out.println("=== Removed Files ===");
-        f = plainFilenamesIn(staged_for_removal);
-        if(f != null){
-            f.sort(String::compareTo);
-            for(String name : f){
-                System.out.println(name);
-            }
-        }
-        System.out.print('\n');
-
-        System.out.println("=== Modifications Not Staged For Commit ===");
-        Commit head = getHead();
-        HashMap<String, String> map = head.name_content_map;
-        List<String> file = plainFilenamesIn(CWD);
-        file.sort(String::compareTo);
-        List<String> out = new ArrayList<>();
-        for(String name : file){
-            File current = join(CWD, name);
-            String sha1 = sha1(readContents(current));
-            File staged = join(staging_area, name);
-            String sha2 = sha1(readContents(staged));
-            if(!staged.exists() && map.containsKey(name) && !map.get(name).equals(sha1)){
-                out.add(name+" (modified)");
-            }
-            else if(staged.exists() && !sha1.equals(sha2)){
-                out.add(name+" (modified)");
-            }
-        }
-        file =plainFilenamesIn(staging_area);
-        if(file != null) {
-            file.sort(String::compareTo);
-            for (String name : file) {
-                File current = join(CWD, name);
-                if (!current.exists()) {
-                    out.add(name + " (deleted)");
+        Commit ret = null;
+        File[] files = object.listFiles();
+        boolean is = true;
+        if(files != null){
+            for(File file : files){
+                ret = readObject(file, Commit.class);
+                if(message.equals(ret.getMessage())){
+                    System.out.println(ret.getId());
+                    is = false;
                 }
             }
         }
-        Set<String> keys = map.keySet();
-        for(String key : keys){
-            File removal = join(staged_for_removal, key);
-            File current = join(CWD, key);
-            if(!current.exists() && !removal.exists()){
+        if(is){
+            System.out.println("Found no commit with that message.");
+        }
+    }
+
+    private static void printBranches(){
+        System.out.println("=== Branches ===");
+        List<String> b = plainFilenamesIn(branches);
+        assert b != null;
+        b.sort(String::compareTo);
+        String cur = getCurrentBranch();
+        for(String a : b){
+            if(a.equals(cur)){
+                System.out.print('*');
+            }
+            System.out.println(a);
+        }
+        System.out.println();
+    }
+
+    private static void printStaged(){
+        System.out.println("=== Staged Files ===");
+        Stage add = getAdd();
+        List<String> a = new ArrayList<>(add.fileName_blob_map.keySet());
+        a.sort(String::compareTo);
+        for(String name : a){
+            System.out.println(name);
+        }
+        System.out.println();
+    }
+
+    private static void printRemoved(){
+        System.out.println("=== Removed Files ===");
+        Stage remove = getRemove();
+        List<String> a = new ArrayList<>(remove.fileName_blob_map.keySet());
+        a.sort(String::compareTo);
+        for(String name : a){
+            System.out.println(name);
+        }
+        System.out.println();
+    }
+
+    private static HashMap<String, String> getCWDCondition(){
+        List<String> cur = plainFilenamesIn(CWD);
+        HashMap<String, String> ret = new HashMap<>();
+        if(cur != null){
+            for(String fileName : cur){
+                String sha1 = sha1(readContents(join(CWD, fileName)));
+                ret.put(fileName, sha1);
+            }
+        }
+        return ret;
+    }
+
+    private static void printModified(){
+        System.out.println("=== Modifications Not Staged For Commit ===");
+
+        List<String> out = new ArrayList<>();
+        HashMap<String, String> cwd = getCWDCondition();
+        Stage add = getAdd();
+        Stage remove = getRemove();
+        Commit head = getHead();
+
+        for(String key : cwd.keySet()){
+            if(!cwd.get(key).equals(add.fileName_blob_map.get(key)) && head.file_blob_map.containsKey(key) && !cwd.get(key).equals(head.file_blob_map.get(key))){
+                out.add(key+" (modified)");
+            }
+        }
+
+        for(String key : add.fileName_blob_map.keySet()){
+            if(!cwd.containsKey(key)){
+                out.add(key+" (deleted)");
+            }
+        }
+
+        for(String key : head.file_blob_map.keySet()){
+            if(!cwd.containsKey(key) && !remove.fileName_blob_map.containsKey(key)){
                 out.add(key + " (deleted)");
             }
         }
 
-        for(String item : out){
-            System.out.println(item);
-        }
-        System.out.print('\n');
+        out.sort(String::compareTo);
 
+        for(String name : out){
+            System.out.println(name);
+        }
+        System.out.println();
+    }
+
+    private static void printUntracked(){
         System.out.println("=== Untracked Files ===");
-        file = plainFilenamesIn(CWD);
-        if(file != null) {
-            file.sort(String::compareTo);
-            for (String name : file) {
-                File staged = join(staging_area, name);
-                if (!staged.exists() && !map.containsKey(name)){
-                    System.out.println(name);
-                }
+        HashMap<String, String> cwd = getCWDCondition();
+        Stage add = getAdd();
+        Commit head = getHead();
+        Set<String> a = cwd.keySet();
+        List<String> out = new ArrayList<>();
+        for(String name : a){
+            if(!add.fileName_blob_map.containsKey(name) && !head.file_blob_map.containsKey(name)){
+                out.add(name);
             }
         }
-        System.out.print('\n');
+        out.sort(String::compareTo);
+        for(String b : out){
+            System.out.println(b);
+        }
+        System.out.println();
+    }
+
+    public static void status(){
+        printBranches();
+        printStaged();
+        printRemoved();
+        printModified();
+        printUntracked();
+    }
+
+    private static Commit getCommit(String id){
+        File c = join(object, id);
+        if(!c.exists()){
+            System.out.println("No commit with that id exists.");
+            System.exit(0);
+        }
+        return readObject(c, Commit.class);
     }
 
     public static void checkout_file(String file_name) throws IOException {
         Commit head = getHead();
-        String sha = head.name_content_map.get(file_name);
-        if(sha != null) {
-            File blob = join(repository, sha);
-            if (!blob.exists()) {
-                throw new GitletException("Error! Cannot find old versions of file " + file_name);
-            }
-            File cur = join(CWD, file_name);
-            if(!cur.exists())cur.createNewFile();
-            writeContents(cur, readContents(blob));
+        if(!head.file_blob_map.containsKey(file_name)){
+            System.out.println("File does not exist in that commit.");
+            System.exit(0);
         }
-        else System.out.println("File does not exist in that commit.");
+        File old_version = join(blobs, head.file_blob_map.get(file_name));
+        File now = join(CWD, file_name);
+        Stage add = getAdd();
+        add.remove_from_add(now);
+        createFile(now);
+        writeContents(now, readContents(old_version));
     }
 
     public static void checkout_commit(String commit_id, String file_name) throws IOException {
-        HashMap<String, Commit> all = getAllCommit();
-        Commit head = all.get(commit_id);
-        if(head != null) {
-            String sha = head.name_content_map.get(file_name);
-            File blob = join(repository, sha);
-            if (!blob.exists()) {
-                throw new GitletException("Error! Cannot find old versions of file " + file_name);
-            }
-            File cur = join(CWD, file_name);
-            if(!cur.exists())cur.createNewFile();
-            writeContents(cur, readContents(blob));
+        Commit head = getCommit(commit_id);
+        if(!head.file_blob_map.containsKey(file_name)){
+            System.out.println("File does not exist in that commit.");
+            System.exit(0);
         }
-        else System.out.println("No commit with that id exists");
+        File old_version = join(blobs, head.file_blob_map.get(file_name));
+        File now = join(CWD, file_name);
+        Stage add = getAdd();
+        add.remove_from_add(now);
+        createFile(now);
+        writeContents(now, readContents(old_version));
     }
 
-    public static void checkout_branch(String branchName){
-        String cur_branch = getCurrentBranch();
+    private static void clearCWD() throws IOException {
+        List<String> a = plainFilenamesIn(CWD);
+        if(a != null) {
+            for (String name : a) {
+                File f = join(CWD, name);
+                deleteFile(f);
+            }
+        }
+    }
+
+    private static Commit getBranch(String BranchName){
+        File b = join(branches, BranchName);
+        if(! b.exists()){
+            System.out.println("No such branch exists.");
+            System.exit(0);
+        }
+        return readObject(b, Commit.class);
+    }
+
+    private static void checkUntracked(){
+        HashMap<String, String> cwd = getCWDCondition();
+        Stage add = getAdd();
         Commit head = getHead();
-        File branch = join(branches, branchName);
+        Set<String> a = cwd.keySet();
+        for(String name : a){
+            if(!add.fileName_blob_map.containsKey(name) && !head.file_blob_map.containsKey(name)){
+                System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+                System.exit(0);
+            }
+        }
+    }
 
-        if(cur_branch.equals(branchName)){
+    public static void checkout_branch(String branchName) throws IOException {
+        if(branchName.equals(getCurrentBranch())){
             System.out.println("No need to checkout the current branch.");
+            System.exit(0);
         }
-        else{
-            if(!branch.exists()){
-                System.out.println("No such branch exists");
-            }
-            else{
-                List<String> files = plainFilenamesIn(CWD);
-                if(files != null) {
-                    for (String file : files) {
-                        if(!head.name_content_map.containsKey(file)){
-                            System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
-                            break;
-                        }
-                    }
-                }
-
-                head = getBranchHead(branchName);
-                if(files != null){
-                    for(String file : files){
-                        File cur = join(CWD, file);
-                        if(!head.name_content_map.containsKey(file)){
-                            cur.delete();
-                        }
-                        else{
-                            String sha = head.name_content_map.get(file);
-                            File blob = join(repository, sha);
-                            String sha1 = sha1(readContents(cur));
-                            if(!sha1.equals(sha)){
-                                writeContents(cur, readContents(blob));
-                            }
-                        }
-                    }
-                }
-                staging_area_clear();
-            }
+        checkUntracked();
+        Commit head = getBranch(branchName);
+        setHead(head);
+        setCurrentBranch(branchName);
+        clearCWD();
+        Set<String> names = head.file_blob_map.keySet();
+        for(String name : names){
+            File f = join(CWD, name);
+            File g = join(blobs, head.file_blob_map.get(name));
+            createFile(f);
+            writeContents(f, readContents(g));
         }
-
-        switchBranch(branchName);
     }
 
     public static void createBranch(String branchName) throws IOException {
-        File branch = join(branches, branchName);
-        if(!branch.exists()){
-            if(!branch.createNewFile()){
-                throw new GitletException("Error! Cannot create branch "+branchName);
-            }
+        List<String> a = plainFilenamesIn(branches);
+        assert a != null;
+        if(a.contains(branchName)){
+            System.out.println("A branch with that name already exists.");
+            System.exit(0);
         }
-        writeObject(branch, getHead());
+        File new_branch = join(branches, branchName);
+        createFile(new_branch);
+        writeObject(new_branch, getHead());
     }
 
-    public static void removeBranch(String branchName){
-        File branch = join(branches, branchName);
-        if(!branch.exists()){
+    public static void removeBranch(String branchName) throws IOException {
+
+        List<String> a = plainFilenamesIn(branches);
+        assert a != null;
+        if(!a.contains(branchName)){
             System.out.println("A branch with that name does not exist.");
+            System.exit(0);
         }
-        else if(branchName.equals(getCurrentBranch())){
+
+        if(branchName.equals(getCurrentBranch())){
             System.out.println("Cannot remove the current branch.");
+            System.exit(0);
         }
-        else{
-            branch.delete();
-        }
+
+        File b = join(branches, branchName);
+        deleteFile(b);
     }
 
     public static void reset(String id) throws IOException {
-        HashMap<String, Commit> all = getAllCommit();
-        Commit head = all.get(id);
-        if(head != null) {
-            Set<String> files = head.name_content_map.keySet();
-            for (String file_name : files) {
-                String sha = head.name_content_map.get(file_name);
-                File blob = join(repository, sha);
-                if (!blob.exists()) {
-                    throw new GitletException("Error! Cannot find old versions of file " + file_name);
-                }
-                File cur = join(CWD, file_name);
-                if(!cur.exists())cur.createNewFile();
-                writeContents(cur, readContents(blob));
-                staging_area_clear();
-            }
-        }
-        else{
-            System.out.println("No commit with that id exists.");
+        checkUntracked();
+        Commit head = getCommit(id);
+        setHead(head);
+        clearCWD();
+        Set<String> names = head.file_blob_map.keySet();
+        for(String name : names){
+            File f = join(CWD, name);
+            File g = join(blobs, head.file_blob_map.get(name));
+            createFile(f);
+            writeContents(f, readContents(g));
         }
     }
 
-    public static void merge(String branchName){
-        throw new UnsupportedOperationException("FUCK");
+    private static Commit findSplitPoint(Commit a, Commit b){
+        int result = a.date.compareTo(b.date);
+        while(result != 0){
+            if(result > 0){
+                a = a.getParent();
+            }
+            else{
+                b = b.getParent();
+            }
+            result = a.date.compareTo(b.date);
+        }
+        return a;
+    }
+
+    private static void checkUncommitted(){
+        Stage add = getAdd();
+        Stage remove = getRemove();
+        if(!add.fileName_blob_map.isEmpty() || !remove.fileName_blob_map.isEmpty()){
+            System.out.println("You have uncommitted changes.");
+            System.exit(0);
+        }
+    }
+
+    private static void checkAncestor(Commit a, Commit b, String branchName) throws IOException {
+        if(a.date.compareTo(b.date) < 0){
+            while(!a.equals(b) && a.date.compareTo(b.date) < 0){
+                b = b.getParent();
+            }
+            if(a.equals(b)){
+                System.out.println("Given branch is an ancestor of the current branch.");
+                System.exit(0);
+            }
+        }
+        else if(a.date.compareTo(b.date) > 0){
+            while(!a.equals(b) && a.date.compareTo(b.date) > 0){
+                a = a.getParent();
+            }
+            if(a.equals(b)){
+                System.out.println("Current branch fast-forwarded.");
+                checkout_branch(branchName);
+                System.exit(0);
+            }
+        }
+        else{
+            System.out.println("Current branch fast-forwarded.");
+            checkout_branch(branchName);
+            System.exit(0);
+        }
+    }
+
+    public static void merge(String branchName) throws IOException {
+
+        Commit branch = getBranch(branchName);
+        Commit head = getHead();
+
+        List<String> a = plainFilenamesIn(branches);
+        assert a != null;
+        if(!a.contains(branchName)){
+            System.out.println("A branch with that name does not exist.");
+            System.exit(0);
+        }
+        if(branchName.equals(getCurrentBranch())){
+            System.out.println("Cannot merge a branch with itself");
+            System.exit(0);
+        }
+        checkUntracked();
+        checkUncommitted();
+        checkAncestor(branch, head, branchName);
+
+        Commit splitPoint = findSplitPoint(branch, head);
+
+        Commit merge = new Commit("merge "+ branchName + " into " + getCurrentBranch(), head.getId(), branch.getId());
+        merge.file_blob_map = new HashMap<>(head.file_blob_map);
+
+        List<String> removed = new ArrayList<>();
+
+        for(String fileName : head.file_blob_map.keySet()){
+            String b = branch.file_blob_map.get(fileName);
+            String s = splitPoint.file_blob_map.get(fileName);
+            String h = head.file_blob_map.get(fileName);
+            if(s != null && !h.equals(b)){
+                System.out.println("Encountered a merge conflict.");
+                System.out.println("<<<<<<< HEAD");
+                System.out.print(readContentsAsString(join(blobs, h)));
+                System.out.println("=======");
+                if(b != null)System.out.print(readContentsAsString(join(blobs, b)));
+                System.out.println(">>>>>>>");
+                System.exit(0);
+            }
+        }
+
+        for(String fileName : branch.file_blob_map.keySet()){
+            String b = branch.file_blob_map.get(fileName);
+            String s = splitPoint.file_blob_map.get(fileName);
+            String h = head.file_blob_map.get(fileName);
+            if(s != null && !b.equals(h)){
+                System.out.println("Encountered a merge conflict.");
+                System.out.println("<<<<<<< HEAD");
+                if(h != null)System.out.print(readContentsAsString(join(blobs, h)));
+                System.out.println("=======");
+                System.out.print(readContentsAsString(join(blobs, b)));
+                System.out.println(">>>>>>>");
+                System.exit(0);
+            }
+        }
+
+        for(String fileName : branch.file_blob_map.keySet()){
+            String b = branch.file_blob_map.get(fileName);
+            String s = splitPoint.file_blob_map.get(fileName);
+            String h = head.file_blob_map.get(fileName);
+            if(!b.equals(s)) {
+                if ((s==null && h == null) || (s != null && s.equals(h))) {
+                    merge.file_blob_map.put(fileName, b);
+                }
+            }
+        }
+
+        for(String fileName : splitPoint.file_blob_map.keySet()){
+            String b = branch.file_blob_map.get(fileName);
+            String s = splitPoint.file_blob_map.get(fileName);
+            String h = head.file_blob_map.get(fileName);
+            if(s != null && s.equals(h) && b == null){
+                merge.file_blob_map.remove(fileName);
+                removed.add(fileName);
+            }
+        }
+
+        merge.setID();
+        merge.save();
+        for(String key : merge.file_blob_map.keySet()){
+            File f = join(CWD, key);
+            createFile(f);
+            File g = join(blobs, merge.file_blob_map.get(key));
+            writeContents(f, readContents(g));
+        }
+
+        for(String name : removed){
+            File f = join(CWD, name);
+            deleteFile(f);
+        }
     }
 }

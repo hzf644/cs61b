@@ -3,11 +3,13 @@ package gitlet;
 // TODO: any imports you need here
 
 import java.io.File;
-import java.io.IOException;
 import java.io.Serializable;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 import static gitlet.Utils.*;
+import static gitlet.Repository.*;
 
 /** Represents a gitlet commit object.
  *  TODO: It's a good idea to give a description here of what else this Class
@@ -16,17 +18,6 @@ import static gitlet.Utils.*;
  *  @author TODO
  */
 public class Commit implements Serializable{
-
-    public static final File CWD = new File(System.getProperty("user.dir"));
-
-    public static final File gitlet_dir = join(CWD, ".gitlet");
-
-    public static final File staging_area = join(gitlet_dir, "staging_area");
-
-    public static final File staged_for_removal = join(staging_area, "staged_for_removal");
-
-    public static final File repository = join(gitlet_dir, "repository");
-
     /**
      * TODO: add instance variables here.
      *
@@ -36,49 +27,94 @@ public class Commit implements Serializable{
      */
 
     /** The message of this Commit. */
-    public final String message;
+    private final String message;
 
-    public final String branch;
+    private final String parent_id;
 
-    public final Commit parent;
+    private final String second_parent_id;
 
-    public final Commit second_parent;
+    private final String timeStamp;
 
-    public final Date date;
+    private String id;
 
-    public HashMap<String, String> name_content_map;
+    public HashMap<String, String> file_blob_map;
+
+    public Date date;
 
     /* TODO: fill in the rest of this class. */
-    public Commit(){
-        branch = null;
-        message = null;
-        parent = null;
-        date = null;
-        second_parent = null;
-        name_content_map = null;
-    }
 
     //regular constructor for a regular commit
-    public Commit(String msg, Commit p, String branch){
-        this.branch = branch;
-        parent = p;
+    public Commit(String msg, String p){
+        parent_id = p;
         message = msg;
-        second_parent = null;
+        second_parent_id = "";
+        DateFormat dateFormat = new SimpleDateFormat("EEE MMM d HH:mm:ss yyyy Z", Locale.CHINA);
         date = new Date();
-        if(p!=null){
-            name_content_map = new HashMap<>(p.name_content_map);
-        }
-        else{
-            name_content_map = new HashMap<>();
-        }
+        timeStamp = dateFormat.format(date);
+        file_blob_map = new HashMap<>();
+        id = "";
+    }
+
+    public void save(){
+        File thisCommit = join(object, id);
+        writeObject(thisCommit, this);
     }
 
     //special constructor for a merge commit
-    public Commit(Commit p1, Commit p2){
-        message = "Merged "+p2.branch+" into "+p1.branch;
-        parent = p1;
-        second_parent = p2;
+    public Commit(String msg, String p1, String p2){
+        message = msg;
+        parent_id = p1;
+        second_parent_id = p2;
+        DateFormat dateFormat = new SimpleDateFormat("EEE MMM d HH:mm:ss yyyy Z", Locale.CHINA);
         date = new Date();
-        branch = p1.branch;
+        timeStamp = dateFormat.format(date);
+        file_blob_map = new HashMap<>();
+        id = "";
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public String getDate() {
+        return timeStamp;
+    }
+
+    public String getParentId() {
+        return parent_id;
+    }
+
+    public String getSecondParentId() {
+        return second_parent_id;
+    }
+
+    public Commit getParent(){
+        File parent = join(object, parent_id);
+        return readObject(parent, Commit.class);
+    }
+
+    public Commit getSecondParent(){
+        File parent = join(object, second_parent_id);
+        return readObject(parent, Commit.class);
+    }
+
+    public boolean isMerge(){
+        return !second_parent_id.isEmpty();
+    }
+
+    public void setID(){
+        id = sha1(message, parent_id, date.toString(), file_blob_map.toString());
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public boolean isInitial(){
+        return parent_id.isEmpty();
+    }
+
+    public boolean equals(Commit c){
+        return id.equals(c.id);
     }
 }
