@@ -239,7 +239,7 @@ class Repository {
     public static void printCommit(Commit c){
         System.out.println("===");
         System.out.println("commit " + c.getId());
-        System.out.println(c.getDate());
+        System.out.println("Date: "+c.getDate());
         System.out.println(c.getMessage());
         System.out.print("\n");
     }
@@ -248,7 +248,7 @@ class Repository {
         System.out.println("===");
         System.out.print("commit " + c.getId() + "\n");
         System.out.println("merge " + c.getParentId().substring(0, 7) + " " + c.getSecondParentId().substring(0, 7));
-        System.out.println(c.getDate());
+        System.out.println("Date: "+c.getDate());
         System.out.println(c.getMessage());
         System.out.print("\n");
     }
