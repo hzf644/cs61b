@@ -65,7 +65,7 @@ public class Commit implements Serializable{
         message = msg;
         parent_id = p1;
         second_parent_id = p2;
-        DateFormat dateFormat = new SimpleDateFormat("EEE MMM d HH:mm:ss yyyy Z", Locale.US);
+        DateFormat dateFormat = new SimpleDateFormat("EEE MMM d HH:mm:ss yyyy Z", Locale.ENGLISH);
         date = new Date();
         timeStamp = dateFormat.format(date);
         file_blob_map = new HashMap<>();
