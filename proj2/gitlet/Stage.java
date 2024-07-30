@@ -1,11 +1,8 @@
 package gitlet;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.io.File;
-import java.util.Map;
-import java.util.Set;
 
 import static gitlet.Repository.*;
 
@@ -16,7 +13,7 @@ class Stage implements Serializable {
 
     HashMap<String, String> fileName_blob_map = new HashMap<>();
 
-    public void add_for_stage(File f) throws IOException {
+    public void add_for_stage(File f) {
         byte[] content = readContents(f);
         String blob = sha1(content);
         fileName_blob_map.put(f.getName(), blob);
@@ -26,12 +23,12 @@ class Stage implements Serializable {
     }
 
 
-    public void add_for_remove(File f) throws IOException{
+    public void add_for_remove(File f){
         String blob = sha1(readContents(f));
         fileName_blob_map.put(f.getName(), blob);
     }
 
-    public void remove_from_add(File f) throws IOException {
+    public void remove_from_add(File f){
         String blob = fileName_blob_map.remove(f.getName());
         if(blob != null){
             File stage_copy = join(Cache, blob);
@@ -39,7 +36,7 @@ class Stage implements Serializable {
         }
     }
 
-    public void remove_from_remove(File f) throws IOException{
+    public void remove_from_remove(File f){
         fileName_blob_map.remove(f.getName());
     }
 
@@ -59,7 +56,7 @@ class Stage implements Serializable {
         writeObject(removeStage, this);
     }
 
-    public static void clearStage() throws IOException {
+    public static void clearStage(){
         File[] files = Cache.listFiles();
         if(files != null) {
             for (File file : files) {
@@ -74,7 +71,7 @@ class Stage implements Serializable {
         remove.saveRemove();
     }
 
-    public static void keepInTrack() throws IOException {
+    public static void keepInTrack(){
         File[] files = Cache.listFiles();
         if(files != null){
             for(File file : files){

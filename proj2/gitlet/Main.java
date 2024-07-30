@@ -3,20 +3,14 @@ package gitlet;
 /** Driver class for Gitlet, a subset of the Git version-control system.
  *  @author TODO
  */
-
-import java.io.File;
-import java.io.IOException;
-import java.util.Objects;
-
 import static gitlet.Repository.*;
-import static gitlet.Utils.join;
 
 public class Main {
 
     /** Usage: java gitlet.Main ARGS, where ARGS contains
      *  <COMMAND> <OPERAND1> <OPERAND2> ... 
      */
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args){
         // TODO: what if args is empty?
         if(args.length==0){
             System.out.println("Please enter a command.");

@@ -2,11 +2,8 @@ package gitlet;
 
 
 import java.io.File;
-import java.io.IOException;
-import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Map.*;
-import org.junit.*;
 
 import static gitlet.Stage.*;
 import static gitlet.Utils.*;
@@ -77,7 +74,7 @@ class Repository {
 
     /* TODO: fill in the rest of this class. */
 
-    private static void initCommit() throws IOException {
+    private static void initCommit(){
 
         Commit initial = new Commit("initial commit", "");
         initial.setID();
@@ -98,7 +95,7 @@ class Repository {
         writeObject(removeStage, remove);
     }
 
-    public static void init() throws IOException {
+    public static void init(){
 
         if(gitlet_dir.exists()){
             System.out.println("A Gitlet version-control system already exists in the current directory.");
@@ -133,7 +130,7 @@ class Repository {
     }
 
 
-    public static void add(String fileName) throws IOException{
+    public static void add(String fileName){
         Stage add = getAdd();
         Stage remove = getRemove();
         File f = join(CWD, fileName);
@@ -170,7 +167,7 @@ class Repository {
         writeObject(cur_b, c);
     }
 
-    private static void setCommit(Commit newCommit) throws IOException {
+    private static void setCommit(Commit newCommit){
 
         HashMap<String, String> current = getHead().file_blob_map;
         HashMap<String, String> newMap = new HashMap<>(current);
@@ -198,7 +195,7 @@ class Repository {
         return add.ifAnythingStaged() || remove.ifAnythingStaged();
     }
 
-    public static void commit(String message) throws IOException{
+    public static void commit(String message){
         if(!ifAnythingStaged()){
             System.out.println("No changes added to the commit.");
             System.exit(0);
@@ -221,7 +218,7 @@ class Repository {
         return sha1.equals(head.file_blob_map.get(f.getName()));
     }
 
-    public static void remove(String fileName) throws IOException {
+    public static void remove(String fileName){
         Stage add = getAdd();
         Stage remove = getRemove();
         File f = join(CWD, fileName);
@@ -424,7 +421,7 @@ class Repository {
         return readObject(c, Commit.class);
     }
 
-    public static void checkout_file(String file_name) throws IOException {
+    public static void checkout_file(String file_name){
         Commit head = getHead();
         if(!head.file_blob_map.containsKey(file_name)){
             System.out.println("File does not exist in that commit.");
@@ -438,7 +435,7 @@ class Repository {
         writeContents(now, readContents(old_version));
     }
 
-    public static void checkout_commit(String commit_id, String file_name) throws IOException {
+    public static void checkout_commit(String commit_id, String file_name){
         Commit head = getCommit(commit_id);
         if(!head.file_blob_map.containsKey(file_name)){
             System.out.println("File does not exist in that commit.");
@@ -452,7 +449,7 @@ class Repository {
         writeContents(now, readContents(old_version));
     }
 
-    private static void clearCWD() throws IOException {
+    private static void clearCWD(){
         List<String> a = plainFilenamesIn(CWD);
         if(a != null) {
             for (String name : a) {
@@ -484,7 +481,7 @@ class Repository {
         }
     }
 
-    public static void checkout_branch(String branchName) throws IOException {
+    public static void checkout_branch(String branchName){
         if(branchName.equals(getCurrentBranch())){
             System.out.println("No need to checkout the current branch.");
             System.exit(0);
@@ -503,7 +500,7 @@ class Repository {
         }
     }
 
-    public static void createBranch(String branchName) throws IOException {
+    public static void createBranch(String branchName){
         List<String> a = plainFilenamesIn(branches);
         assert a != null;
         if(a.contains(branchName)){
@@ -515,7 +512,7 @@ class Repository {
         writeObject(new_branch, getHead());
     }
 
-    public static void removeBranch(String branchName) throws IOException {
+    public static void removeBranch(String branchName){
 
         List<String> a = plainFilenamesIn(branches);
         assert a != null;
@@ -533,7 +530,7 @@ class Repository {
         deleteFile(b);
     }
 
-    public static void reset(String id) throws IOException {
+    public static void reset(String id){
         checkUntracked();
         Commit head = getCommit(id);
         setHead(head);
@@ -570,7 +567,7 @@ class Repository {
         }
     }
 
-    private static void checkAncestor(Commit a, Commit b, String branchName) throws IOException {
+    private static void checkAncestor(Commit a, Commit b, String branchName){
         if(a.date.compareTo(b.date) < 0){
             while(!a.equals(b) && a.date.compareTo(b.date) < 0){
                 b = b.getParent();
@@ -597,7 +594,7 @@ class Repository {
         }
     }
 
-    public static void merge(String branchName) throws IOException {
+    public static void merge(String branchName){
 
         Commit branch = getBranch(branchName);
         Commit head = getHead();

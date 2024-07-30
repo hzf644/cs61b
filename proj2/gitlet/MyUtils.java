@@ -1,34 +1,40 @@
 package gitlet;
 
 import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
 
 
 class MyUtils {
 
-    static void mkdir(File f) throws IOException {
+    static void mkdir(File f){
         if(!f.exists()){
-            if(!f.mkdir()){
-                throw new IOException("cannot make directory "+f.getName());
+            try{
+                f.mkdir();
+            }
+            catch (SecurityException e){
+                System.exit(-1);
             }
         }
     }
 
-    static void createFile(File f) throws IOException{
+    static void createFile(File f){
         if(!f.exists()){
-            if(!f.createNewFile()){
-                throw new IOException("cannot create file "+f.getName());
+            try{
+                f.createNewFile();
+            }
+            catch (IOException | SecurityException exception){
+                System.exit(-1);
             }
         }
     }
 
-    static void deleteFile(File f) throws IOException{
+    static void deleteFile(File f){
         if(f.exists()) {
-            if (!f.delete()) {
-                throw new IOException("cannot delete file " + f.getName());
+            try{
+                f.delete();
+            }
+            catch (SecurityException e){
+                System.exit(-1);
             }
         }
     }
