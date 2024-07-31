@@ -139,7 +139,7 @@ class Repository {
             System.exit(0);
         }
         if(checkIfHaveNew(f)){
-            add.add_for_stage(f);
+            add.stage_for_add(f);
         }
         else{
             add.remove_from_add(f);
@@ -177,9 +177,9 @@ class Repository {
         for(Entry<String, String> entry : addition){
             newMap.put(entry.getKey(), entry.getValue());
         }
-        Set<Entry<String, String>> removal = remove.fileName_blob_map.entrySet();
-        for(Entry<String, String> entry : removal){
-            newMap.remove(entry.getKey(), entry.getValue());
+        Set<String> removal = remove.fileName_blob_map.keySet();
+        for(String entry : removal){
+            newMap.remove(entry);
         }
 
         keepInTrack();
@@ -212,20 +212,19 @@ class Repository {
         extendBranch(newCommit);
     }
 
-    private static boolean checkIfCurrentlyTracked(File f){
-        String sha1 = sha1(readContents(f));
+    private static boolean checkIfCurrentlyTracked(String fileName){
         Commit head = getHead();
-        return sha1.equals(head.file_blob_map.get(f.getName()));
+        return head.file_blob_map.containsKey(fileName);
     }
 
     public static void remove(String fileName){
         Stage add = getAdd();
         Stage remove = getRemove();
         File f = join(CWD, fileName);
-        if(add.isStaged(f) || checkIfCurrentlyTracked(f)) {
+        if(add.isStaged(fileName) || checkIfCurrentlyTracked(fileName)) {
             add.remove_from_add(f);
-            if (checkIfCurrentlyTracked(f)) {
-                remove.add_for_remove(f);
+            if (checkIfCurrentlyTracked(fileName)) {
+                remove.stage_for_remove(f);
                 deleteFile(f);
             }
         }
@@ -624,7 +623,7 @@ class Repository {
             String b = branch.file_blob_map.get(fileName);
             String s = splitPoint.file_blob_map.get(fileName);
             String h = head.file_blob_map.get(fileName);
-            if(s != null && !h.equals(b)){
+            if(s != null && !h.equals(b) && !h.equals(s)){
                 System.out.println("Encountered a merge conflict.");
                 System.out.println("<<<<<<< HEAD");
                 System.out.print(readContentsAsString(join(blobs, h)));
@@ -639,7 +638,7 @@ class Repository {
             String b = branch.file_blob_map.get(fileName);
             String s = splitPoint.file_blob_map.get(fileName);
             String h = head.file_blob_map.get(fileName);
-            if(s != null && !b.equals(h)){
+            if(s != null && !b.equals(h) && !b.equals(s)){
                 System.out.println("Encountered a merge conflict.");
                 System.out.println("<<<<<<< HEAD");
                 if(h != null)System.out.print(readContentsAsString(join(blobs, h)));

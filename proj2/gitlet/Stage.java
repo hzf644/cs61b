@@ -13,7 +13,7 @@ class Stage implements Serializable {
 
     HashMap<String, String> fileName_blob_map = new HashMap<>();
 
-    public void add_for_stage(File f) {
+    public void stage_for_add(File f) {
         byte[] content = readContents(f);
         String blob = sha1(content);
         fileName_blob_map.put(f.getName(), blob);
@@ -23,8 +23,9 @@ class Stage implements Serializable {
     }
 
 
-    public void add_for_remove(File f){
-        String blob = sha1(readContents(f));
+    public void stage_for_remove(File f){
+        String blob = "";
+        if(f.exists()) blob = sha1(readContents(f));
         fileName_blob_map.put(f.getName(), blob);
     }
 
@@ -83,9 +84,8 @@ class Stage implements Serializable {
         }
     }
 
-    public boolean isStaged(File f){
-        String blob = sha1(readContents(f));
-        return blob.equals(fileName_blob_map.get(f.getName()));
+    public boolean isStaged(String fileName){
+        return fileName_blob_map.containsKey(fileName);
     }
 
     public boolean isStaged(String fileName, String blob){
