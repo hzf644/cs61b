@@ -683,5 +683,8 @@ class Repository {
             File f = join(CWD, name);
             deleteFile(f);
         }
+
+        setHead(merge);
+        extendBranch(merge);
     }
 }
