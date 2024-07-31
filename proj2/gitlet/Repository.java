@@ -246,7 +246,7 @@ class Repository {
     public static void printMerge(Commit c){
         System.out.println("===");
         System.out.print("commit " + c.getId() + "\n");
-        System.out.println("merge " + c.getParentId().substring(0, 7) + " " + c.getSecondParentId().substring(0, 7));
+        System.out.println("Merge: " + c.getParentId().substring(0, 7) + " " + c.getSecondParentId().substring(0, 7));
         System.out.println("Date: "+c.getDate());
         System.out.println(c.getMessage());
         System.out.print("\n");
@@ -624,12 +624,12 @@ class Repository {
             String s = splitPoint.file_blob_map.get(fileName);
             String h = head.file_blob_map.get(fileName);
             if(s != null && !h.equals(b) && !h.equals(s)){
-                System.out.println("Encountered a merge conflict.");
                 System.out.println("<<<<<<< HEAD");
                 System.out.print(readContentsAsString(join(blobs, h)));
                 System.out.println("=======");
                 if(b != null)System.out.print(readContentsAsString(join(blobs, b)));
                 System.out.println(">>>>>>>");
+                System.out.println("Encountered a merge conflict.");
                 System.exit(0);
             }
         }
@@ -639,12 +639,12 @@ class Repository {
             String s = splitPoint.file_blob_map.get(fileName);
             String h = head.file_blob_map.get(fileName);
             if(s != null && !b.equals(h) && !b.equals(s)){
-                System.out.println("Encountered a merge conflict.");
                 System.out.println("<<<<<<< HEAD");
                 if(h != null)System.out.print(readContentsAsString(join(blobs, h)));
                 System.out.println("=======");
                 System.out.print(readContentsAsString(join(blobs, b)));
                 System.out.println(">>>>>>>");
+                System.out.println("Encountered a merge conflict.");
                 System.exit(0);
             }
         }
