@@ -593,6 +593,99 @@ class Repository {
         }
     }
 
+    private static HashMap<String, String> getAddedFiles(Commit head, Commit branch, Commit splitPoint){
+        HashMap<String, String > ret = new HashMap<>();
+        for(String key : branch.file_blob_map.keySet()){
+            String h = head.file_blob_map.get(key);
+            String b = branch.file_blob_map.get(key);
+            String s = splitPoint.file_blob_map.get(key);
+            if(!b.equals(s) && ((h == null && s == null) || (h != null && h.equals(s)))){
+                ret.put(key, b);
+            }
+        }
+        return ret;
+    }
+
+    private static List<String> getRemovedFiles(Commit head, Commit branch, Commit splitPoint){
+        List<String> ret = new ArrayList<>();
+        for(String key : head.file_blob_map.keySet()){
+            String h = head.file_blob_map.get(key);
+            String b = branch.file_blob_map.get(key);
+            String s = splitPoint.file_blob_map.get(key);
+            if(b == null && h != null && h.equals(s)){
+                ret.add(key);
+            }
+        }
+        return ret;
+    }
+
+    private static HashMap<String, String > getConflictFiles(Commit head, Commit branch, Commit splitPoint){
+        HashMap<String, String > conflict = new HashMap<>();
+
+        for(String fileName : head.file_blob_map.keySet()){
+            String b = branch.file_blob_map.get(fileName);
+            String s = splitPoint.file_blob_map.get(fileName);
+            String h = head.file_blob_map.get(fileName);
+            if(!h.equals(s) && !h.equals(b) && ((b != null && !b.equals(s)) || (b == null && s != null))){
+                String x = readContentsAsString(join(blobs, h));
+                String y = "\n";
+                if(b != null)y = readContentsAsString(join(blobs, b));
+                String newContent = "<<<<<<< HEAD\n" + x + "=======\n" + y + ">>>>>>>\n";
+                conflict.put(fileName, newContent);
+                if(!conflict.containsKey(fileName)){
+                    System.out.println("Encountered a merge conflict.");
+                }
+            }
+        }
+
+        for(String fileName : branch.file_blob_map.keySet()){
+            String b = branch.file_blob_map.get(fileName);
+            String s = splitPoint.file_blob_map.get(fileName);
+            String h = head.file_blob_map.get(fileName);
+            if(!b.equals(s) && !b.equals(h) && ((h != null && !h.equals(s)) || (h == null && s != null))){
+                String x = "\n";
+                if(h != null)x = readContentsAsString(join(blobs, h));
+                String y = readContentsAsString(join(blobs, b));
+                String newContent = "<<<<<<< HEAD\n" + x + "=======\n" + y + ">>>>>>>\n";
+                conflict.put(fileName, newContent);
+                if(!conflict.containsKey(fileName)){
+                    System.out.println("Encountered a merge conflict.");
+                }
+            }
+        }
+        return conflict;
+    }
+
+    private static void setMerge(Commit head, Commit branch, Commit splitPoint, Commit merge){
+        List<String> removed = getRemovedFiles(head, branch, splitPoint);
+        HashMap<String, String> added = getAddedFiles(head, branch, splitPoint);
+        HashMap<String, String> conflict = getConflictFiles(head, branch, splitPoint);
+
+        for(Entry<String, String> item : added.entrySet()){
+            merge.file_blob_map.put(item.getKey(), item.getValue());
+            File new_add = join(CWD, item.getKey());
+            createFile(new_add);
+            writeContents(new_add, readContents(join(blobs, item.getValue())));
+        }
+
+        for(String key : removed){
+            merge.file_blob_map.remove(key);
+            File r = join(CWD, key);
+            deleteFile(r);
+        }
+
+        for(Entry<String, String> item : conflict.entrySet()){
+            File con = join(CWD, item.getKey());
+            createFile(con);
+            String blob = sha1(item.getValue());
+            writeContents(con, item.getValue());
+            merge.file_blob_map.put(item.getKey(), blob);
+            File new_blob = join(blobs, blob);
+            createFile(new_blob);
+            writeContents(new_blob, item.getValue());
+        }
+    }
+
     public static void merge(String branchName){
 
         Commit branch = getBranch(branchName);
@@ -614,75 +707,13 @@ class Repository {
 
         Commit splitPoint = findSplitPoint(branch, head);
 
-        Commit merge = new Commit("merge "+ branchName + " into " + getCurrentBranch(), head.getId(), branch.getId());
+        Commit merge = new Commit("Merged "+ branchName + " into " + getCurrentBranch(), head.getId(), branch.getId());
         merge.file_blob_map = new HashMap<>(head.file_blob_map);
 
-        List<String> removed = new ArrayList<>();
-
-        for(String fileName : head.file_blob_map.keySet()){
-            String b = branch.file_blob_map.get(fileName);
-            String s = splitPoint.file_blob_map.get(fileName);
-            String h = head.file_blob_map.get(fileName);
-            if(s != null && !h.equals(b) && !h.equals(s)){
-                System.out.println("<<<<<<< HEAD");
-                System.out.print(readContentsAsString(join(blobs, h)));
-                System.out.println("=======");
-                if(b != null)System.out.print(readContentsAsString(join(blobs, b)));
-                System.out.println(">>>>>>>");
-                System.out.println("Encountered a merge conflict.");
-                System.exit(0);
-            }
-        }
-
-        for(String fileName : branch.file_blob_map.keySet()){
-            String b = branch.file_blob_map.get(fileName);
-            String s = splitPoint.file_blob_map.get(fileName);
-            String h = head.file_blob_map.get(fileName);
-            if(s != null && !b.equals(h) && !b.equals(s)){
-                System.out.println("<<<<<<< HEAD");
-                if(h != null)System.out.print(readContentsAsString(join(blobs, h)));
-                System.out.println("=======");
-                System.out.print(readContentsAsString(join(blobs, b)));
-                System.out.println(">>>>>>>");
-                System.out.println("Encountered a merge conflict.");
-                System.exit(0);
-            }
-        }
-
-        for(String fileName : branch.file_blob_map.keySet()){
-            String b = branch.file_blob_map.get(fileName);
-            String s = splitPoint.file_blob_map.get(fileName);
-            String h = head.file_blob_map.get(fileName);
-            if(!b.equals(s)) {
-                if ((s==null && h == null) || (s != null && s.equals(h))) {
-                    merge.file_blob_map.put(fileName, b);
-                }
-            }
-        }
-
-        for(String fileName : splitPoint.file_blob_map.keySet()){
-            String b = branch.file_blob_map.get(fileName);
-            String s = splitPoint.file_blob_map.get(fileName);
-            String h = head.file_blob_map.get(fileName);
-            if(s != null && s.equals(h) && b == null){
-                merge.file_blob_map.remove(fileName);
-                removed.add(fileName);
-            }
-        }
+        setMerge(head, branch, splitPoint, merge);
 
         merge.setID();
         merge.save();
-        for(String key : merge.file_blob_map.keySet()){
-            File f = join(CWD, key);
-            createFile(f);
-            File g = join(blobs, merge.file_blob_map.get(key));
-            writeContents(f, readContents(g));
-        }
-
-        for(String name : removed){
-            File f = join(CWD, name);
-            deleteFile(f);
-        }
 
         setHead(merge);
         extendBranch(merge);
