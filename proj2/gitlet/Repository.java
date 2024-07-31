@@ -631,9 +631,9 @@ class Repository {
                 String y = "\n";
                 if(b != null)y = readContentsAsString(join(blobs, b));
                 String newContent = "<<<<<<< HEAD\n" + x + "=======\n" + y + ">>>>>>>\n";
-                conflict.put(fileName, newContent);
                 if(!conflict.containsKey(fileName)){
                     System.out.println("Encountered a merge conflict.");
+                    conflict.put(fileName, newContent);
                 }
             }
         }
@@ -647,9 +647,9 @@ class Repository {
                 if(h != null)x = readContentsAsString(join(blobs, h));
                 String y = readContentsAsString(join(blobs, b));
                 String newContent = "<<<<<<< HEAD\n" + x + "=======\n" + y + ">>>>>>>\n";
-                conflict.put(fileName, newContent);
                 if(!conflict.containsKey(fileName)){
                     System.out.println("Encountered a merge conflict.");
+                    conflict.put(fileName, newContent);
                 }
             }
         }
